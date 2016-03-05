@@ -20,7 +20,7 @@ module.exports = function(grunt) {
     browserify: {
       openpgp: {
         files: {
-          'dist/openpgp.js': ['./src/index.js']
+          'src/openpgp.js': [ './src/index.js' ]
         },
         options: {
           browserifyOptions: {
@@ -79,10 +79,30 @@ module.exports = function(grunt) {
       },
       worker: {
         files: {
-          'dist/openpgp.worker.js': ['./src/worker/worker.js']
+          'src/openpgp_debug.js': [ './src/index.js' ]
         },
         options: {
-          cacheFile: 'browserify-cache-worker.json'
+          browserifyOptions: {
+            debug: true,
+            standalone: 'openpgp'
+          },
+          external: [ 'crypto', 'buffer', 'node-localstorage', 'node-fetch' ],
+          transform: [
+            ["babelify", {
+              ignore: ['*.min.js'],
+              presets: ["es2015"]
+            }]
+          ]
+        }
+      },
+      worker: {
+        files: {
+          'src/openpgp.worker.js': [ './src/worker/worker.js' ]
+        }
+      },
+      worker_min: {
+        files: {
+          'src/openpgp.worker.min.js': [ './src/worker/worker.js' ]
         }
       },
       unittests: {
@@ -90,45 +110,30 @@ module.exports = function(grunt) {
           'test/lib/unittests-bundle.js': ['./test/unittests.js']
         },
         options: {
-          cacheFile: 'browserify-cache-unittests.json',
-          external: ['buffer', 'openpgp', '../../dist/openpgp', '../../../dist/openpgp'],
-          transform: [
-            ["babelify", {
-              global: true,
-              // Only babelify chai-as-promised in node_modules
-              only: /^(?:.*\/node_modules\/chai-as-promised\/|(?!.*\/node_modules\/)).*$/,
-              plugins: ["transform-async-to-generator",
-                        "syntax-async-functions",
-                        "transform-regenerator",
-                        "transform-runtime",
-                        "transform-remove-strict-mode"],
-              ignore: ['*.min.js'],
-              presets: ["env"]
-            }]
-          ]
+          external: [ 'crypto', 'buffer' , 'node-localstorage', 'node-fetch', 'openpgp', '../../src/openpgp', '../../../src/openpgp' ]
         }
       }
     },
     replace: {
       openpgp: {
-        src: ['dist/openpgp.js'],
-        dest: ['dist/openpgp.js'],
+        src: ['src/openpgp.js'],
+        dest: ['src/openpgp.js'],
         replacements: [{
           from: /OpenPGP.js VERSION/g,
           to: 'OpenPGP.js v<%= pkg.version %>'
         }]
       },
-      openpgp_min: {
-        src: ['dist/openpgp.min.js'],
-        dest: ['dist/openpgp.min.js'],
+      openpgp_debug: {
+        src: ['src/openpgp_debug.js'],
+        dest: ['src/openpgp_debug.js'],
         replacements: [{
           from: "openpgp.worker.js",
           to: "openpgp.worker.min.js"
         }]
       },
       worker_min: {
-        src: ['dist/openpgp.worker.min.js'],
-        dest: ['dist/openpgp.worker.min.js'],
+        src: ['src/openpgp.worker.min.js'],
+        dest: ['src/openpgp.worker.min.js'],
         replacements: [{
           from: "openpgp.js",
           to: "openpgp.min.js"
@@ -154,8 +159,8 @@ module.exports = function(grunt) {
                 'this is LGPL licensed code, see LICENSE/our website <%= pkg.homepage %> for more information. */'
         },
         files: {
-          'dist/openpgp.min.js': 'dist/openpgp.min.js',
-          'dist/openpgp.worker.min.js': 'dist/openpgp.worker.min.js'
+          'src/openpgp.min.js' : [ 'src/openpgp.js' ],
+          'src/openpgp.worker.min.js' : [ 'src/openpgp.worker.min.js' ]
         }
       }
     },

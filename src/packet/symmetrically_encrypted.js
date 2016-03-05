@@ -79,20 +79,18 @@ SymmetricallyEncrypted.prototype.write = function () {
  * @returns {Promise<Boolean>}
  * @async
  */
-SymmetricallyEncrypted.prototype.decrypt = async function (sessionKeyAlgorithm, key) {
-  this.encrypted = await stream.readToEnd(this.encrypted);
-  const decrypted = await crypto.cfb.decrypt(sessionKeyAlgorithm, key,
-    this.encrypted.subarray(crypto.cipher[sessionKeyAlgorithm].blockSize + 2),
-    this.encrypted.subarray(2, crypto.cipher[sessionKeyAlgorithm].blockSize + 2)
-  );
+SymmetricallyEncrypted.prototype.decrypt = function (sessionKeyAlgorithm, key) {
+  var decrypted = crypto.cfb.decrypt(sessionKeyAlgorithm, key, this.encrypted, true);
 
-  // If MDC errors are not being ignored, all missing MDC packets in symmetrically encrypted data should throw an error
-  if (!this.ignore_mdc_error) {
-    throw new Error('Decryption failed due to missing MDC.');
+  // for modern cipher (blocklength != 64 bit, except for Twofish) MDC is required
+  if (!this.ignore_mdc_error &&
+      (sessionKeyAlgorithm === 'aes128' ||
+       sessionKeyAlgorithm === 'aes192' ||
+       sessionKeyAlgorithm === 'aes256')) {
+    throw new Error('Decryption failed due to missing MDC in combination with modern cipher.');
   }
-  await this.packets.read(decrypted);
 
-  return true;
+  this.packets.read(decrypted);
 };
 
 /**

@@ -137,19 +137,35 @@ export default {
    * @param {Function} callback Function to call with the parsed packet
    * @returns {Boolean} Returns false if the stream was empty and parsing is done, and true otherwise.
    */
-  read: async function(input, callback) {
-    const reader = stream.getReader(input);
-    let writer;
-    try {
-      const peekedBytes = await reader.peekBytes(2);
-      // some sanity checks
-      if (!peekedBytes || peekedBytes.length < 2 || (peekedBytes[0] & 0x80) === 0) {
-        throw new Error("Error during parsing. This message / key probably does not conform to a valid OpenPGP format.");
-      }
-      const headerByte = await reader.readByte();
-      let tag = -1;
-      let format = -1;
-      let packet_length;
+  read: function(input, position, len) {
+    // some sanity checks
+    if (input === null || input.length <= position || input.subarray(position, input.length).length < 2 || (input[position] &
+      0x80) === 0) {
+      throw new Error("Error during parsing. This message / key probably does not conform to a valid OpenPGP format.");
+    }
+    
+    var mypos = position;
+    var tag = -1;
+    var format = -1;
+    var packet_length;
+
+    format = 0; // 0 = old format; 1 = new format
+    if ((input[mypos] & 0x40) !== 0) {
+      format = 1;
+    }
+
+    var packet_length_type;
+    if (format) {
+      // new format header
+      tag = input[mypos] & 0x3F; // bit 5-0
+    } else {
+      // old format header
+      tag = (input[mypos] & 0x3F) >> 2; // bit 5-2
+      packet_length_type = input[mypos] & 0x03; // bit 1-0
+    }
+
+    // header octet parsing done
+    mypos++;
 
       format = 0; // 0 = old format; 1 = new format
       if ((headerByte & 0x40) !== 0) {

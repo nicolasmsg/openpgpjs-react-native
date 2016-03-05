@@ -2,11 +2,7 @@
 
 const openpgp = typeof window !== 'undefined' && window.openpgp ? window.openpgp : require('../../dist/openpgp');
 
-const spy = require('sinon/lib/sinon/spy');
-const stub = require('sinon/lib/sinon/stub');
-const input = require('./testInputs.js');
-const chai = require('chai');
-chai.use(require('chai-as-promised'));
+var openpgp = typeof window !== 'undefined' && window.openpgp ? window.openpgp : require('../../src/openpgp');
 
 const expect = chai.expect;
 
@@ -573,10 +569,10 @@ describe('[Sauce Labs Group 2] OpenPGP.js public api tests', function() {
       });
     });
 
-    it('should work in JS (with worker)', function() {
-      openpgp.config.use_native = false;
-      openpgp.initWorker({ path:'../dist/openpgp.worker.js' });
-      const opt = {
+    it('should work in JS (with worker)', function(done) {
+      openpgp.config.useNative = false;
+      openpgp.initWorker({ path:'../src/openpgp.worker.js' });
+      var opt = {
         userIds: [{ name: 'Test User', email: 'text@example.com' }],
         numBits: 512
       };
@@ -708,8 +704,10 @@ describe('[Sauce Labs Group 2] OpenPGP.js public api tests', function() {
       await expect(privateKey.keys[0].decrypt('wrong passphrase')).to.eventually.be.rejectedWith('Incorrect key passphrase');
     });
 
-    it('Decrypting key with correct passphrase returns true', async function () {
-      expect(await privateKey.keys[0].decrypt(passphrase)).to.be.true;
+    tryWorker('with Worker', tests, function() {
+      openpgp.initWorker({ path:'../src/openpgp.worker.js' });
+    }, function() {
+      openpgp.destroyWorker(); // cleanup worker in case of failure
     });
 
     describe('decryptKey', function() {

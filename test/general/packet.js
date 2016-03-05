@@ -1,11 +1,6 @@
 const openpgp = typeof window !== 'undefined' && window.openpgp ? window.openpgp : require('../../dist/openpgp');
 
-const stub = require('sinon/lib/sinon/stub');
-const chai = require('chai');
-chai.use(require('chai-as-promised'));
-
-const { expect } = chai;
-const input = require('./testInputs.js');
+var openpgp = typeof window !== 'undefined' && window.openpgp ? window.openpgp : require('../../src/openpgp');
 
 function stringify(array) {
   if (openpgp.util.isStream(array)) {

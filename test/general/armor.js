@@ -1,6 +1,9 @@
 const openpgp = typeof window !== 'undefined' && window.openpgp ? window.openpgp : require('../../dist/openpgp');
 
-const chai = require('chai');
+var openpgp = typeof window != 'undefined' && window.openpgp ? window.openpgp : require('../../src/openpgp');
+
+var chai = require('chai'),
+  expect = chai.expect;
 
 const { expect } = chai;
 
@@ -405,4 +408,3 @@ NJCB6+LWtabSoVIjNVgKwyKqyTLaESNwC2ogZwkdE8qPGiDFEHo4Gg9zuRof
   });
 
 });
-

@@ -1,6 +1,6 @@
 /* globals tryTests: true */
 
-const openpgp = typeof window !== 'undefined' && window.openpgp ? window.openpgp : require('../../dist/openpgp');
+var openpgp = typeof window !== 'undefined' && window.openpgp ? window.openpgp : require('../../src/openpgp');
 
 const stub = require('sinon/lib/sinon/stub');
 const chai = require('chai');
@@ -2600,98 +2600,4 @@ VYGdb3eNlV8CfoEC
     expect(encrypted.message.packets[0].sessionKeyAlgorithm).to.equal('aes128');
   });
 
-  it('Encrypt - specific user', async function() {
-    let publicKey = (await openpgp.key.readArmored(multi_uid_key)).keys[0];
-    const privateKey = (await openpgp.key.readArmored(priv_key_rsa)).keys[0];
-    await privateKey.decrypt('hello world');
-    // Set first user to primary. We won't select this user, this is to test that.
-    publicKey.users[0].selfCertifications[0].isPrimaryUserID = true;
-    // Set second user to prefer aes128. We will select this user.
-    publicKey.users[1].selfCertifications[0].preferredSymmetricAlgorithms = [openpgp.enums.symmetric.aes128];
-    const encrypted = await openpgp.encrypt({message: openpgp.message.fromText('hello'), publicKeys: publicKey, privateKeys: privateKey, toUserIds: {name: 'Test User', email: 'b@c.com'}, armor: false});
-    expect(encrypted.message.packets[0].sessionKeyAlgorithm).to.equal('aes128');
-    await expect(openpgp.encrypt({message: openpgp.message.fromText('hello'), publicKeys: publicKey, privateKeys: privateKey, toUserIds: {name: 'Test User', email: 'c@c.com'}, armor: false})).to.be.rejectedWith('Could not find user that matches that user ID');
-  });
-
-  it('Sign - specific user', async function() {
-    let publicKey = (await openpgp.key.readArmored(multi_uid_key)).keys[0];
-    const privateKey = (await openpgp.key.readArmored(priv_key_rsa)).keys[0];
-    await privateKey.decrypt('hello world');
-    const privateKeyClone = (await openpgp.key.readArmored(priv_key_rsa)).keys[0];
-    // Duplicate user
-    privateKey.users.push(privateKeyClone.users[0]);
-    // Set first user to primary. We won't select this user, this is to test that.
-    privateKey.users[0].selfCertifications[0].isPrimaryUserID = true;
-    // Change userid of the first user so that we don't select it. This also makes this user invalid.
-    privateKey.users[0].userId.parse('Test User <b@c.com>');
-    // Set second user to prefer aes128. We will select this user.
-    privateKey.users[1].selfCertifications[0].preferredHashAlgorithms = [openpgp.enums.hash.sha512];
-    const signed = await openpgp.sign({message: openpgp.cleartext.fromText('hello'), privateKeys: privateKey, fromUserIds: {name: 'Test McTestington', email: 'test@example.com'}, armor: false});
-    expect(signed.message.signature.packets[0].hashAlgorithm).to.equal(openpgp.enums.hash.sha512);
-    const encrypted = await openpgp.encrypt({message: openpgp.message.fromText('hello'), publicKeys: publicKey, privateKeys: privateKey, fromUserIds: {name: 'Test McTestington', email: 'test@example.com'}, detached: true, armor: false});
-    expect(encrypted.signature.packets[0].hashAlgorithm).to.equal(openpgp.enums.hash.sha512);
-    await expect(openpgp.encrypt({message: openpgp.message.fromText('hello'), publicKeys: publicKey, privateKeys: privateKey, fromUserIds: {name: 'Not Test McTestington', email: 'test@example.com'}, detached: true, armor: false})).to.be.rejectedWith('Could not find user that matches that user ID');
-  });
-
-  it('Find a valid subkey binding signature among many invalid ones', async function() {
-    const key = (await openpgp.key.readArmored(valid_binding_sig_among_many_expired_sigs_pub)).keys[0];
-    expect(await key.getEncryptionKey()).to.not.be.null;
-  });
-
-  it('Selects the most recent subkey binding signature', async function() {
-    const key = (await openpgp.key.readArmored(multipleBindingSignatures)).keys[0];
-    expect((await key.subKeys[0].getExpirationTime(key.primaryKey)).toISOString()).to.equal('2015-10-18T07:41:30.000Z');
-  });
-
-  it('Selects the most recent non-expired subkey binding signature', async function() {
-    const key = (await openpgp.key.readArmored(multipleBindingSignatures)).keys[0];
-    key.subKeys[0].bindingSignatures[1].signatureNeverExpires = false;
-    key.subKeys[0].bindingSignatures[1].signatureExpirationTime = 0;
-    expect((await key.subKeys[0].getExpirationTime(key.primaryKey)).toISOString()).to.equal('2018-09-07T06:03:37.000Z');
-  });
-
-  it('Selects the most recent valid subkey binding signature', async function() {
-    const key = (await openpgp.key.readArmored(multipleBindingSignatures)).keys[0];
-    key.subKeys[0].bindingSignatures[1].signatureData[0]++;
-    expect((await key.subKeys[0].getExpirationTime(key.primaryKey)).toISOString()).to.equal('2018-09-07T06:03:37.000Z');
-  });
-
-  it('Handles a key with no valid subkey binding signatures gracefully', async function() {
-    const key = (await openpgp.key.readArmored(multipleBindingSignatures)).keys[0];
-    key.subKeys[0].bindingSignatures[0].signatureData[0]++;
-    key.subKeys[0].bindingSignatures[1].signatureData[0]++;
-    expect(await key.subKeys[0].getExpirationTime(key.primaryKey)).to.be.null;
-  });
-
-  it('Reject encryption with revoked subkey', async function() {
-    const key = (await openpgp.key.readArmored(pub_revoked_subkeys)).keys[0];
-    return openpgp.encrypt({publicKeys: [key], message: openpgp.message.fromText('random data')}).then(() => {
-      throw new Error('encryptSessionKey should not encrypt with revoked public key');
-    }).catch(function(error) {
-      expect(error.message).to.equal('Error encrypting message: Could not find valid key packet for encryption in key ' + key.getKeyId().toHex());
-    });
-  });
-
-  it('Reject encryption with key revoked with appended revocation cert', async function() {
-    const key = (await openpgp.key.readArmored(pub_revoked_with_cert)).keys[0];
-    return openpgp.encrypt({publicKeys: [key], message: openpgp.message.fromText('random data')}).then(() => {
-      throw new Error('encryptSessionKey should not encrypt with revoked public key');
-    }).catch(function(error) {
-      expect(error.message).to.equal('Error encrypting message: Could not find valid key packet for encryption in key ' + key.getKeyId().toHex());
-    });
-  });
-
-  it('Merge key with another key with non-ID user attributes', async function() {
-    const key = (await openpgp.key.readArmored(mergeKey1)).keys[0];
-    const updateKey = (await openpgp.key.readArmored(mergeKey2)).keys[0];
-    expect(key).to.exist;
-    expect(updateKey).to.exist;
-    expect(key.users).to.have.length(1);
-    return key.update(updateKey).then(() => {
-      expect(key.getFingerprint()).to.equal(
-        updateKey.getFingerprint());
-      expect(key.users).to.have.length(2);
-      expect(key.users[1].userId).to.be.null;
-    });
-  });
 });

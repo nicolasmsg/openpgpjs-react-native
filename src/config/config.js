@@ -157,31 +157,8 @@ export default {
    * @property {Boolean} show_comment Whether to include {@link module:config/config.commentstring} in armored messages
    */
   show_comment: true,
-  /**
-   * @memberof module:config
-   * @property {String} versionstring A version string to be included in armored messages
-   */
-  versionstring: "OpenPGP.js VERSION",
-  /**
-   * @memberof module:config
-   * @property {String} commentstring A comment string to be included in armored messages
-   */
-  commentstring: "https://openpgpjs.org",
-
-  /**
-   * @memberof module:config
-   * @property {String} keyserver
-   */
-  keyserver:     "https://keyserver.ubuntu.com",
-  /**
-   * @memberof module:config
-   * @property {String} node_store
-   */
-  node_store:    "./openpgp.store",
-  /**
-   * Max userid string length (used for parsing)
-   * @memberof module:config
-   * @property {Integer} max_userid_length
-   */
-  max_userid_length: 1024 * 5
+  versionstring: "React-Native-OpenPGP.js 0.1",
+  commentstring: "http://openpgpjs.org",
+  keyserver: "https://keyserver.ubuntu.com",
+  node_store: './openpgp.store'
 };

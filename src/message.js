@@ -100,33 +100,23 @@ Message.prototype.getSigningKeyIds = function() {
  * @returns {Promise<Message>}             new message with decrypted content
  * @async
  */
-Message.prototype.decrypt = async function(privateKeys, passwords, sessionKeys, streaming) {
-  const keyObjs = sessionKeys || await this.decryptSessionKeys(privateKeys, passwords);
+Message.prototype.decrypt = function(privateKey, sessionKey, password) {
+  var keyObj = sessionKey || this.decryptSessionKey(privateKey, password);
 
-  const symEncryptedPacketlist = this.packets.filterByTag(
-    enums.packet.symmetricallyEncrypted,
-    enums.packet.symEncryptedIntegrityProtected,
-    enums.packet.symEncryptedAEADProtected
-  );
-
-  if (symEncryptedPacketlist.length === 0) {
-    return this;
+  if (!keyObj || !util.isUint8Array(keyObj.data) || !util.isString(keyObj.algorithm)) {
+    throw new Error('Invalid session key for decryption.');
   }
 
-  const symEncryptedPacket = symEncryptedPacketlist[0];
-  let exception = null;
-  for (let i = 0; i < keyObjs.length; i++) {
-    if (!keyObjs[i] || !util.isUint8Array(keyObjs[i].data) || !util.isString(keyObjs[i].algorithm)) {
-      throw new Error('Invalid session key for decryption.');
-    }
+  var symEncryptedPacketlist = this.packets.filterByTag(enums.packet.symmetricallyEncrypted, enums.packet.symEncryptedIntegrityProtected);
 
-    try {
-      await symEncryptedPacket.decrypt(keyObjs[i].algorithm, keyObjs[i].data, streaming);
-      break;
-    } catch (e) {
-      util.print_debug_error(e);
-      exception = e;
-    }
+  if (symEncryptedPacketlist.length !== 0) {
+    var symEncryptedPacket = symEncryptedPacketlist[0];
+    symEncryptedPacket.decrypt(keyObj.algorithm, keyObj.data);
+
+    var resultMsg = new Message(symEncryptedPacket.packets);
+    // remove packets after decryption
+    symEncryptedPacket.packets = new packet.List();
+    return resultMsg;
   }
   // We don't await stream.cancel here because it only returns when the other copy is canceled too.
   stream.cancel(symEncryptedPacket.encrypted); // Don't keep copy of encrypted data in memory.
@@ -153,19 +143,25 @@ Message.prototype.decrypt = async function(privateKeys, passwords, sessionKeys, 
 Message.prototype.decryptSessionKeys = async function(privateKeys, passwords) {
   let keyPackets = [];
 
-  let exception;
-  if (passwords) {
-    const symESKeyPacketlist = this.packets.filterByTag(enums.packet.symEncryptedSessionKey);
-    if (!symESKeyPacketlist) {
-      throw new Error('No symmetrically encrypted session key packet found.');
+  } else if (privateKey) {
+    var encryptionKeyIds = this.getEncryptionKeyIds();
+    if (!encryptionKeyIds.length) {
+      // nothing to decrypt
+      return;
     }
-    await Promise.all(passwords.map(async function(password, i) {
-      let packets;
-      if (i) {
-        packets = new packet.List();
-        await packets.read(symESKeyPacketlist.write());
-      } else {
-        packets = symESKeyPacketlist;
+
+    var privateKeyPacket = privateKey.getKeyPacket(encryptionKeyIds);
+    if (!privateKeyPacket.isDecrypted) {
+      throw new Error('Private key is not decrypted.');
+    }
+
+    var pkESKeyPacketlist = this.packets.filterByTag(enums.packet.publicKeyEncryptedSessionKey);
+
+    for (var j = 0; j < pkESKeyPacketlist.length; j++) {
+      if (pkESKeyPacketlist[j].publicKeyId.equals(privateKeyPacket.getKeyId())) {
+        keyPacket = pkESKeyPacketlist[j];
+        keyPacket.decrypt(privateKeyPacket);
+        break;
       }
       await Promise.all(packets.map(async function(keyPacket) {
         try {
@@ -181,42 +177,6 @@ Message.prototype.decryptSessionKeys = async function(privateKeys, passwords) {
     if (!pkESKeyPacketlist) {
       throw new Error('No public key encrypted session key packet found.');
     }
-    await Promise.all(pkESKeyPacketlist.map(async function(keyPacket) {
-      await Promise.all(privateKeys.map(async function(privateKey) {
-        const primaryUser = await privateKey.getPrimaryUser(); // TODO: Pass userId from somewhere.
-        let algos = [
-          enums.symmetric.aes256, // Old OpenPGP.js default fallback
-          enums.symmetric.aes128, // RFC4880bis fallback
-          enums.symmetric.tripledes, // RFC4880 fallback
-          enums.symmetric.cast5 // Golang OpenPGP fallback
-        ];
-        if (primaryUser && primaryUser.selfCertification.preferredSymmetricAlgorithms) {
-          algos = algos.concat(primaryUser.selfCertification.preferredSymmetricAlgorithms);
-        }
-
-        const privateKeyPackets = privateKey.getKeys(keyPacket.publicKeyId).map(key => key.keyPacket);
-        await Promise.all(privateKeyPackets.map(async function(privateKeyPacket) {
-          if (!privateKeyPacket) {
-            return;
-          }
-          if (!privateKeyPacket.isDecrypted()) {
-            throw new Error('Private key is not decrypted.');
-          }
-          try {
-            await keyPacket.decrypt(privateKeyPacket);
-            if (!algos.includes(enums.write(enums.symmetric, keyPacket.sessionKeyAlgorithm))) {
-              throw new Error('A non-preferred symmetric algorithm was used.');
-            }
-            keyPackets.push(keyPacket);
-          } catch (err) {
-            util.print_debug_error(err);
-            exception = err;
-          }
-        }));
-      }));
-      stream.cancel(keyPacket.encrypted); // Don't keep copy of encrypted data in memory.
-      keyPacket.encrypted = null;
-    }));
   } else {
     throw new Error('No key or password specified.');
   }
@@ -265,8 +225,8 @@ Message.prototype.getFilename = function() {
  * @returns {(String|null)} literal body of the message interpreted as text
  */
 Message.prototype.getText = function() {
-  const msg = this.unwrapCompressed();
-  const literal = msg.packets.findPacket(enums.packet.literal);
+  var literal = this.packets.findPacket(enums.packet.literal);
+
   if (literal) {
     return literal.getText();
   }
@@ -313,7 +273,11 @@ Message.prototype.encrypt = async function(keys, passwords, sessionKey, wildcard
     sessionKey = await crypto.generateSessionKey(symAlgo);
   }
 
-  const msg = await encryptSessionKey(sessionKey, symAlgo, aeadAlgo, keys, passwords, wildcard, date, userIds);
+  console.log("Algo: " + symAlgo);
+
+  var sessionKey = crypto.generateSessionKey(enums.read(enums.symmetric, symAlgo));
+  var msg = encryptSessionKey(sessionKey, enums.read(enums.symmetric, symAlgo), keys, passwords);
+  var packetlist = msg.packets;
 
   if (config.aead_protect && (config.aead_protect_version !== 4 || aeadAlgo)) {
     symEncryptedPacket = new packet.SymEncryptedAEADProtected();

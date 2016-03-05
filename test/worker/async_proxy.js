@@ -2,7 +2,7 @@
 
 const openpgp = typeof window !== 'undefined' && window.openpgp ? window.openpgp : require('../../dist/openpgp');
 
-const chai = require('chai');
+var openpgp = typeof window !== 'undefined' && window.openpgp ? window.openpgp : require('../../src/openpgp');
 
 const { expect } = chai;
 
@@ -31,28 +31,28 @@ const pub_key =
   '=h/aX',
   '-----END PGP PUBLIC KEY BLOCK-----'].join('\n');
 
-const plaintext = 'short message\nnext line\n한국어/조선말';
-let pubKey;
+var plaintext = 'short message\nnext line\n한국어/조선말';
+var pubKey;
 
-tryTests('Async Proxy', tests, {
-  if: typeof window !== 'undefined' && window.Worker && window.MessageChannel,
-  before: async function() {
-    openpgp.initWorker({ path:'../dist/openpgp.worker.js' });
-    pubKey = (await openpgp.key.readArmored(pub_key)).keys[0];
-  },
-  after: function() {
-    openpgp.destroyWorker();
-  }
+tryWorker('Async Proxy', tests, function() {
+  openpgp.initWorker({ path:'../src/openpgp.worker.js' });
+  pubKey = openpgp.key.readArmored(pub_key).keys[0];
+}, function() {
+  openpgp.destroyWorker();
 });
 
 function tests() {
 
-  describe('Random number pipeline', function() {
-    it('Random number buffer automatically reseeded', function() {
-      const worker = new Worker('../dist/openpgp.worker.js');
-      const wProxy = new openpgp.AsyncProxy({ path:'../dist/openpgp.worker.js', workers: [worker] });
-
-      return wProxy.delegate('encrypt', { publicKeys:[pubKey], message:openpgp.message.fromText(plaintext) });
+  describe('Error handling', function() {
+    it('Depleted random buffer in worker gives error', function (done) {
+      var wProxy = new openpgp.AsyncProxy({ path:'../src/openpgp.worker.js' });
+      wProxy.worker = new Worker('../src/openpgp.worker.js');
+      wProxy.worker.onmessage = wProxy.onMessage.bind(wProxy);
+      wProxy.seedRandom(10);
+      wProxy.delegate('encrypt', { publicKeys:[pubKey], data:plaintext }).catch(function(err) {
+        expect(err.message).to.match(/Random number buffer depleted/);
+        done();
+      });
     });
   });
 

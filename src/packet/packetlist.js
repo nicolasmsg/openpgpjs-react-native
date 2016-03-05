@@ -38,53 +38,18 @@ List.prototype = [];
  * Reads a stream of binary data and interprents it as a list of packets.
  * @param {Uint8Array | ReadableStream<Uint8Array>} A Uint8Array of bytes.
  */
-List.prototype.read = async function (bytes) {
-  this.stream = stream.transformPair(bytes, async (readable, writable) => {
-    const writer = stream.getWriter(writable);
-    try {
-      while (true) {
-        await writer.ready;
-        const done = await packetParser.read(readable, async parsed => {
-          try {
-            const tag = enums.read(enums.packet, parsed.tag);
-            const packet = packets.newPacketFromTag(tag);
-            packet.packets = new List();
-            packet.fromStream = util.isStream(parsed.packet);
-            await packet.read(parsed.packet);
-            await writer.write(packet);
-          } catch (e) {
-            if (!config.tolerant || packetParser.supportsStreaming(parsed.tag)) {
-              // The packets that support streaming are the ones that contain
-              // message data. Those are also the ones we want to be more strict
-              // about and throw on parse errors for.
-              await writer.abort(e);
-            }
-            util.print_debug_error(e);
-          }
-        });
-        if (done) {
-          await writer.ready;
-          await writer.close();
-          return;
-        }
-      }
-    } catch(e) {
-      await writer.abort(e);
-    }
-  });
+Packetlist.prototype.read = function (bytes) {
+  var i = 0;
 
-  // Wait until first few packets have been read
-  const reader = stream.getReader(this.stream);
-  while (true) {
-    const { done, value } = await reader.read();
-    if (!done) {
-      this.push(value);
-    } else {
-      this.stream = null;
-    }
-    if (done || value.fromStream) {
-      break;
-    }
+  while (i < bytes.length) {
+    var parsed = packetParser.read(bytes, i, bytes.length - i);
+    i = parsed.offset;
+
+    var tag = enums.read(enums.packet, parsed.tag);
+    var packet = packets.newPacketFromTag(tag);
+
+    this.push(packet);
+    packet.read(parsed.packet);
   }
   reader.releaseLock();
 };
@@ -161,7 +126,6 @@ List.prototype.filterByTag = function (...args) {
       filtered.push(this[i]);
     }
   }
-
   return filtered;
 };
 
@@ -225,5 +189,3 @@ List.fromStructuredClone = function(packetlistClone) {
   }
   return packetlist;
 };
-
-export default List;

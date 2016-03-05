@@ -135,20 +135,14 @@ PublicKeyEncryptedSessionKey.prototype.encrypt = async function (key) {
  * @returns {Promise<Boolean>}
  * @async
  */
-PublicKeyEncryptedSessionKey.prototype.decrypt = async function (key) {
-  const algo = enums.write(enums.publicKey, this.publicKeyAlgorithm);
-  const result = await crypto.publicKeyDecrypt(
-    algo, key.params, this.encrypted, key.getFingerprintBytes());
+PublicKeyEncryptedSessionKey.prototype.decrypt = function (key) {
+  var result = crypto.publicKeyDecrypt(
+    this.publicKeyAlgorithm,
+    key.mpi,
+    this.encrypted).toBytes();
 
-  let checksum;
-  let decoded;
-  if (algo === enums.publicKey.ecdh) {
-    decoded = crypto.pkcs5.decode(result.toString());
-    checksum = util.str_to_Uint8Array(decoded.substr(decoded.length - 2));
-  } else {
-    decoded = crypto.pkcs1.eme.decode(result.toString());
-    checksum = result.toUint8Array().slice(result.byteLength() - 2);
-  }
+  var checksum = util.readNumber(util.str2Uint8Array(result.substr(result.length - 2)));
+  var decoded = crypto.pkcs1.eme.decode(result);
 
   key = util.str_to_Uint8Array(decoded.substring(1, decoded.length - 2));
 

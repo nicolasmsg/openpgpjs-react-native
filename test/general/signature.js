@@ -1,7 +1,6 @@
 const openpgp = typeof window !== 'undefined' && window.openpgp ? window.openpgp : require('../../dist/openpgp');
 
-const chai = require('chai');
-chai.use(require('chai-as-promised'));
+var openpgp = typeof window !== 'undefined' && window.openpgp ? window.openpgp : require('../../src/openpgp');
 
 const expect = chai.expect;
 

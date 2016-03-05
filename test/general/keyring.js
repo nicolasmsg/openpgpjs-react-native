@@ -1,6 +1,6 @@
 const openpgp = typeof window !== 'undefined' && window.openpgp ? window.openpgp : require('../../dist/openpgp');
 
-const chai = require('chai');
+var openpgp = typeof window != 'undefined' && window.openpgp ? window.openpgp : require('../../src/openpgp');
 
 const { expect } = chai;
 
@@ -290,7 +290,7 @@ describe("Keyring", async function() {
     await localstore.storePublic([key]);
     expect(localstore.storage.getItem('remove-prefix-public-keys')).to.be.not.null;
 
-    await localstore.storePublic([]);
+    localstore.storePublic([]);
     expect(localstore.storage.getItem('remove-prefix-public-keys')).to.be.null;
   });
 
@@ -333,4 +333,3 @@ describe("Keyring", async function() {
   });
 
 });
-

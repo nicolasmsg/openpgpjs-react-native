@@ -1,6 +1,6 @@
 const openpgp = typeof window !== 'undefined' && window.openpgp ? window.openpgp : require('../../../dist/openpgp');
 
-const chai = require('chai');
+var openpgp = typeof window != 'undefined' && window.openpgp ? window.openpgp : require('../../../src/openpgp');
 
 const { util } = openpgp;
 const BFencrypt = openpgp.crypto.cipher.blowfish;

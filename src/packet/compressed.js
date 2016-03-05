@@ -24,12 +24,13 @@
  * @requires compression/bzip2
  */
 
-import pako from 'pako';
-import Bunzip from 'seek-bzip';
-import stream from 'web-stream-tools';
-import config from '../config';
-import enums from '../enums';
-import util from '../util';
+'use strict';
+
+import enums from '../enums.js';
+import util from '../util.js';
+import Zlib from '../compression/zlib.min.js';
+import * as Inflater from '../compression/rawinflate.js';
+import * as Deflater from '../compression/rawdeflate.js';
 
 /**
  * Implementation of the Compressed Data Packet (Tag 8)
@@ -100,10 +101,30 @@ Compressed.prototype.write = function () {
  * Decompression method for decompressing the compressed data
  * read by read_packet
  */
-Compressed.prototype.decompress = async function () {
+Compressed.prototype.decompress = function () {
+  var decompressed, inflate;
 
-  if (!decompress_fns[this.algorithm]) {
-    throw new Error(this.algorithm + ' decompression not supported');
+  switch (this.algorithm) {
+    case 'uncompressed':
+      decompressed = this.compressed;
+      break;
+
+    case 'zip':
+      inflate = new Inflater.RawInflate(this.compressed);
+      decompressed = inflate.decompress();
+      break;
+
+    case 'zlib':
+      inflate = new Zlib.Zlib.Inflate(this.compressed);
+      decompressed = inflate.decompress();
+      break;
+
+    case 'bzip2':
+      // TODO: need to implement this
+      throw new Error('Compression algorithm BZip2 [BZ2] is not implemented.');
+
+    default:
+      throw new Error("Compression algorithm unknown :" + this.alogrithm);
   }
 
   await this.packets.read(decompress_fns[this.algorithm](this.compressed));
@@ -113,9 +134,35 @@ Compressed.prototype.decompress = async function () {
  * Compress the packet data (member decompressedData)
  */
 Compressed.prototype.compress = function () {
+  var uncompressed, deflate;
+  uncompressed = this.packets.write();
 
-  if (!compress_fns[this.algorithm]) {
-    throw new Error(this.algorithm + ' compression not supported');
+  switch (this.algorithm) {
+
+    case 'uncompressed':
+      // - Uncompressed
+      this.compressed = uncompressed;
+      break;
+
+    case 'zip':
+      // - ZIP [RFC1951]
+      deflate = new Deflater.RawDeflate(uncompressed);
+      this.compressed = deflate.compress();
+      break;
+
+    case 'zlib':
+      // - ZLIB [RFC1950]
+      deflate = new Zlib.Zlib.Deflate(uncompressed);
+      this.compressed = deflate.compress();
+      break;
+
+    case 'bzip2':
+      //  - BZip2 [BZ2]
+      // TODO: need to implement this
+      throw new Error("Compression algorithm BZip2 [BZ2] is not implemented.");
+
+    default:
+      throw new Error("Compression algorithm unknown :" + this.type);
   }
 
   this.compressed = compress_fns[this.algorithm](this.packets.write());

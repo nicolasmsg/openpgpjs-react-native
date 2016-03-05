@@ -8,11 +8,13 @@
  * @module crypto/cipher
  */
 
-import aes from './aes';
-import des from './des.js';
-import cast5 from './cast5';
-import twofish from './twofish';
-import blowfish from './blowfish';
+'use strict';
+
+import desModule from './des.js';
+import aes from './aes.js';
+import cast5 from './cast5.js';
+import twofish from './twofish.js';
+import blowfish from './blowfish.js';
 
 export default {
   /**

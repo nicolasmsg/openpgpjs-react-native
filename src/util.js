@@ -607,15 +607,7 @@ export default {
       return;
     }
 
-    return util.nodeRequire('crypto');
-  },
-
-  getNodeZlib: function() {
-    if (!config.use_native) {
-      return;
-    }
-
-    return util.nodeRequire('zlib');
+    return null;
   },
 
   /**
