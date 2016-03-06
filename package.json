@@ -75,7 +75,7 @@
     "whatwg-fetch": "^2.0.3"
   },
   "dependencies": {
-    "react-native-randombytes": "file:///Users/orhan/react-native-randombytes",
+    "react-native-randombytes": "github:orhan/react-native-randombytes",
     "rusha": "^0.8.3",
     "asmcrypto-lite": "^1.0.1",
     "buffer": "^4.5.0",
