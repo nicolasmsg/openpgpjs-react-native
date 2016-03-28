@@ -273,8 +273,6 @@ Message.prototype.encrypt = async function(keys, passwords, sessionKey, wildcard
     sessionKey = await crypto.generateSessionKey(symAlgo);
   }
 
-  console.log("Algo: " + symAlgo);
-
   var sessionKey = crypto.generateSessionKey(enums.read(enums.symmetric, symAlgo));
   var msg = encryptSessionKey(sessionKey, enums.read(enums.symmetric, symAlgo), keys, passwords);
   var packetlist = msg.packets;
