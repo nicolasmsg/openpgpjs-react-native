@@ -274,34 +274,18 @@ export function decryptKey({ privateKey, passphrase }) {
     return asyncProxy.delegate('decryptKey', { privateKey, passphrase });
   }
 
-  return Promise.resolve().then(async function() {
-    await privateKey.decrypt(passphrase);
+  try {
+    if (!privateKey.decrypt(passphrase)) {
+      throw new Error('Invalid passphrase');
+    }
 
     return {
       key: privateKey
     };
-  }).catch(onError.bind(null, 'Error decrypting private key'));
-}
-
-/**
- * Lock a private key with your passphrase.
- * @param  {Key} privateKey                      the private key that is to be decrypted
- * @param  {String|Array<String>} passphrase     the user's passphrase(s) chosen during key generation
- * @returns {Promise<Object>}                    the locked key object in the form: { key:Key }
- * @async
- */
-export function encryptKey({ privateKey, passphrase }) {
-  if (asyncProxy) { // use web worker if available
-    return asyncProxy.delegate('encryptKey', { privateKey, passphrase });
   }
-
-  return Promise.resolve().then(async function() {
-    await privateKey.encrypt(passphrase);
-
-    return {
-      key: privateKey
-    };
-  }).catch(onError.bind(null, 'Error decrypting private key'));
+  catch (error) {
+    return "Error decrypting private key";
+  }
 }
 
 
@@ -361,33 +345,29 @@ export function encrypt({ message, publicKeys, privateKeys, passwords, sessionKe
     return asyncProxy.delegate('encrypt', { message, publicKeys, privateKeys, passwords, sessionKey, compression, armor, streaming, detached, signature, returnSessionKey, wildcard, date, fromUserIds, toUserIds });
   }
 
-  return execute(() => {
-    let message = createMessage(data, filename);
-    if (privateKeys) { // sign the message only if private keys are specified
-      message = message.sign(privateKeys);
-    }
-    if (privateKeys.length || signature) { // sign the message only if private keys or signature is specified
-      if (detached) {
-        const detachedSignature = await message.signDetached(privateKeys, signature, date, fromUserIds);
-        result.signature = armor ? detachedSignature.armor() : detachedSignature;
-      } else {
-        message = await message.sign(privateKeys, signature, date, fromUserIds);
+  var promise = new Promise(function(resolve, reject) {
+    try {
+      let message = createMessage(data, filename);
+      if (privateKeys) { // sign the message only if private keys are specified
+        message = message.sign(privateKeys);
       }
-    }
-    message = message.compress(compression);
-    return message.encrypt(publicKeys, passwords, sessionKey, wildcard, date, toUserIds, streaming);
+      message = message.encrypt(publicKeys, passwords);
 
-  }).then(async encrypted => {
-    if (armor) {
-      result.data = encrypted.message.armor();
-    } else {
-      result.message = encrypted.message;
+      if(armor) {
+        resolve({
+          data: message.armor()
+        });
+      }
+
+      resolve({
+        message: message
+      });
+    } catch (error) {
+      reject('Error encrypting message');
     }
-    if (returnSessionKey) {
-      result.sessionKey = encrypted.sessionKey;
-    }
-    return convertStreams(result, streaming, armor ? ['signature', 'data'] : []);
-  }).catch(onError.bind(null, 'Error encrypting message'));
+  });
+
+  return promise;
 }
 
 /**
@@ -426,16 +406,23 @@ export function decrypt({ message, privateKeys, passwords, sessionKeys, publicKe
     return asyncProxy.delegate('decrypt', { message, privateKeys, passwords, sessionKeys, publicKeys, format, streaming, signature, date });
   }
 
-  return execute(() => {
-    message = message.decrypt(privateKey, sessionKey, password);
-    const result = parseMessage(message, format);
+  var promise = new Promise(function(resolve, reject) {
+    try {
+      message = message.decrypt(privateKey, sessionKey, password);
+      const result = parseMessage(message, format);
 
-    if (publicKeys && result.data) { // verify only if publicKeys are specified
-      result.signatures = message.verify(publicKeys);
+      if (publicKeys && result.data) { // verify only if publicKeys are specified
+        result.signatures = message.verify(publicKeys);
+      }
+
+      resolve(result);
     }
+    catch (error) {
+      reject('Error decrypting message');
+    }
+  });
 
-    return result;
-  }, 'Error decrypting message');
+  return promise;
 }
 
 
@@ -481,21 +468,26 @@ export function sign({ message, privateKeys, armor=true, streaming=message&&mess
     });
   }
 
-  const result = {};
-  return Promise.resolve().then(async function() {
-    if (detached) {
-      const signature = await message.signDetached(privateKeys, undefined, date, fromUserIds);
-      result.signature = armor ? signature.armor() : signature;
-    } else {
-      message = await message.sign(privateKeys, undefined, date, fromUserIds);
-      if (armor) {
-        result.data = message.armor();
-      } else {
-        result.message = message;
+  var promise = new Promise(function(resolve, reject) {
+    try {
+      const cleartextMessage = new cleartext.CleartextMessage(data);
+      cleartextMessage.sign(privateKeys);
+
+      if(armor) {
+        resolve({
+          data: cleartextMessage.armor()
+        });
       }
+      resolve({
+        message: cleartextMessage
+      });
     }
-    return convertStreams(result, streaming, armor ? ['signature', 'data'] : []);
-  }).catch(onError.bind(null, 'Error signing cleartext message'));
+    catch (error) {
+      reject('Error signing cleartext message');
+    }
+  });
+
+  return promise;
 }
 
 /**
@@ -529,15 +521,15 @@ export function verify({ message, publicKeys, streaming=message&&message.fromStr
     return asyncProxy.delegate('verify', { message, publicKeys, streaming, signature, date });
   }
 
-  return Promise.resolve().then(async function() {
-    const result = {};
-    result.signatures = signature ? await message.verifyDetached(signature, publicKeys, date, streaming) : await message.verify(publicKeys, date, streaming);
-    result.data = message instanceof CleartextMessage ? message.getText() : message.getLiteralData();
-    if (streaming) linkStreams(result, message);
-    result.data = await convertStream(result.data, streaming);
-    if (!streaming) await prepareSignatures(result.signatures);
-    return result;
-  }).catch(onError.bind(null, 'Error verifying cleartext signed message'));
+  try {
+    return {
+      data: message.getText(),
+      signatures: message.verify(publicKeys)
+    };
+  }
+  catch (error) {
+    return 'Error verifying cleartext signed message';
+  }
 }
 
 
@@ -570,11 +562,14 @@ export function encryptSessionKey({ data, algorithm, aeadAlgorithm, publicKeys, 
     return asyncProxy.delegate('encryptSessionKey', { data, algorithm, aeadAlgorithm, publicKeys, passwords, wildcard, date, toUserIds });
   }
 
-  return Promise.resolve().then(async function() {
-
-    return { message: await messageLib.encryptSessionKey(data, algorithm, aeadAlgorithm, publicKeys, passwords, wildcard, date, toUserIds) };
-
-  }).catch(onError.bind(null, 'Error encrypting session key'));
+  try {
+    return {
+      message: messageLib.encryptSessionKey(data, algorithm, publicKeys, passwords)
+    };
+  }
+  catch (error) {
+    return 'Error encrypting session key';
+  }
 }
 
 /**
@@ -596,11 +591,12 @@ export function decryptSessionKeys({ message, privateKeys, passwords }) {
     return asyncProxy.delegate('decryptSessionKeys', { message, privateKeys, passwords });
   }
 
-  return Promise.resolve().then(async function() {
-
-    return message.decryptSessionKeys(privateKeys, passwords);
-
-  }).catch(onError.bind(null, 'Error decrypting session keys'));
+  try {
+    message.decryptSessionKey(privateKey, password);
+  }
+  catch (error) {
+    return 'Error decrypting session key';
+  }
 }
 
 
