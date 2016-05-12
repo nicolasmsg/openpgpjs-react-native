@@ -49,8 +49,6 @@ import './polyfills';
 import util from './util';
 import AsyncProxy from './worker/async_proxy.js';
 import random from './crypto/random.js';
-import es6Promise from 'es6-promise';
-es6Promise.polyfill(); // load ES6 Promises polyfill
 
 
 //////////////////////////////////
