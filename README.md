@@ -19,7 +19,24 @@ React-Native-OpenPGP
 #### Set up
 
 ```js
-var openpgp = require('react-native-openpgp'); // use as CommonJS, AMD, ES6 module or via window.openpgp
+var openpgp = require('react-native-openpgp');
+```
+
+#### Before Usage
+
+Before using any of the methods below, it is *~~highly recommended~~ necessary* to generate some random values to seed the randomization algorithm of this library. You don't have to do this for every operation, but you are highly advised to do so.
+
+Basic example:
+```js
+openpgp.prepareRandomValues()
+  .then(() => {
+
+    // YOUR CALLS START HERE!
+    openpgp.encrypt(options).then(function(ciphertext) {
+        encrypted = ciphertext.data;
+    });
+
+  })
 ```
 
 #### Encrypt and decrypt *Uint8Array* data with a password
