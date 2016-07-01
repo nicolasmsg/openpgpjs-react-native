@@ -6,7 +6,12 @@ React-Native-OpenPGP
 
 ### Getting started
 
-#### Npm
+#### Prerequisites
+
+    React-Native-OpenPGP relies on the [React-Native-Random-Bytes](https://www.npmjs.com/package/react-native-randombytes) library.
+    Please install and setup that first.
+
+#### npm
 
     npm install --save github:orhan/react-native-openpgp
 
