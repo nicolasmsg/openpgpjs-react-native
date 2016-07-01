@@ -4,9 +4,9 @@ React-Native-OpenPGP
 [React-Native-OpenPGP](http://openpgpjs.org/) is a Javascript implementation of the OpenPGP protocol based on [OpenPGP.js](https://github.com/openpgpjs/openpgpjs).
 
 
-### Getting started
+## Getting started
 
-### Prerequisites
+#### Prerequisites
 
     React-Native-OpenPGP relies on the [React-Native-Random-Bytes](https://www.npmjs.com/package/react-native-randombytes) library.
     Please install and setup that first.
@@ -16,7 +16,7 @@ React-Native-OpenPGP
     npm install --save github:orhan/react-native-openpgp
     rnpm link react-native-openpgp
 
-Note: Run `npm install -g rnpm` if you haven't installed RNPM (React-Native Package Manager) yet!
+<br/>
 
 ## Usage
 
