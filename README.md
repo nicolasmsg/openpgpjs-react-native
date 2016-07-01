@@ -13,7 +13,7 @@ Please install and setup that first.
 
 #### npm
 
-    npm install --save github:orhan/react-native-openpgp
+    npm install --save react-native-openpgp
     rnpm link react-native-openpgp
 
 <br/>
