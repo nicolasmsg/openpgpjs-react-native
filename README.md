@@ -16,7 +16,7 @@ React-Native-OpenPGP
     npm install --save github:orhan/react-native-openpgp
 
 
-#### Set up
+### Usage
 
 ```js
 var openpgp = require('react-native-openpgp');
@@ -24,7 +24,7 @@ var openpgp = require('react-native-openpgp');
 
 #### Before Usage
 
-Before using any of the methods below, it is *~~highly recommended~~ necessary* to generate some random values to seed the randomization algorithm of this library. You don't have to do this for every operation, but you are highly advised to do so.
+Before using any of the methods below, it is ~~highly recommended~~ **necessary** to generate some random values to seed the randomization algorithm of this library. You don't have to do this for every operation, but you are highly advised to do so.
 
 Basic example:
 ```js
