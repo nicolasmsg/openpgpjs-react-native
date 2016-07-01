@@ -32,7 +32,7 @@ import util from '../util.js';
 import * as Isaac from './isaac.js';
 const nodeCrypto = null;
 
-var randomizer = require('react-native-randombytes');
+var randomizer = require('./randomBytes');
 var isaacson = new Isaac.Isaac();
 
 export default {
