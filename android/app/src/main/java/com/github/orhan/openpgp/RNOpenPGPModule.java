@@ -12,7 +12,7 @@ import android.util.Base64;
 
 public class RNOpenPGPModule extends ReactContextBaseJavaModule {
 
-  public RNOpenPGPModuleModule(ReactApplicationContext reactContext) {
+  public RNOpenPGPModule(ReactApplicationContext reactContext) {
     super(reactContext);
   }
 
