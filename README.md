@@ -14,14 +14,14 @@ Please install and setup that first.
 #### npm
 
     npm install --save react-native-openpgp
-    rnpm link react-native-openpgp
+    react-native link react-native-openpgp
 
 <br/>
 
 ## Usage
 
 ```js
-var openpgp = require('react-native-openpgp');
+import * as openpgp from 'react-native-openpgp';
 ```
 
 #### Before Usage
@@ -49,25 +49,42 @@ Encryption will use the algorithm specified in config.encryption_cipher (default
 var options, encrypted;
 
 options = {
-    message: openpgp.message.fromBinary(new Uint8Array([0x01, 0x01, 0x01])), // input as Message object
-    passwords: ['secret stuff'],                                             // multiple passwords possible
-    armor: false                                                             // don't ASCII armor (for Uint8Array output)
+  data: 'Hello, World!',      // input as String
+  passwords: ['secret stuff'] // multiple passwords possible
 };
 
-openpgp.encrypt(options).then(function(ciphertext) {
-    encrypted = ciphertext.message.packets.write(); // get raw encrypted packets as Uint8Array
-});
+// Because of the way the library works (random values have to be generated on natively!),
+// it is always highly recommended to call this method before doing any actual work!
+openpgp.prepareRandomValues()
+  .then(() => {
+    openpgp.encrypt(options)
+      .then((ciphertext) => {
+        encrypted = ciphertext.data; // '-----BEGIN PGP MESSAGE ... END PGP MESSAGE-----'
+      })
+      .catch((error) => {
+        console.log("Something went wrong: " + error);
+      });
+  });
 ```
 
 ```js
 options = {
-    message: openpgp.readMessage(encrypted), // parse armored message
-    password: 'secret stuff'                         // decrypt with password
+  message: openpgp.readMessage(encrypted), // parse armored message
+  password: 'secret stuff'                         // decrypt with password
 };
 
-openpgp.decrypt(options).then(function(plaintext) {
-    return plaintext.data // Uint8Array([0x01, 0x01, 0x01])
-});
+// Because of the way the library works (random values have to be generated on natively!),
+// it is always highly recommended to call this method before doing any actual work!
+openpgp.prepareRandomValues()
+  .then(() => {
+    openpgp.decrypt(options)
+      .then((plaintext) => {
+        return plaintext.data; // 'Hello, World!'
+      })
+      .catch((error) => {
+        console.log("Something went wrong: " + error);
+      });
+  });
 ```
 
 #### Encrypt and decrypt *String* data with PGP keys
@@ -166,37 +183,48 @@ Either set the `compression` parameter in the options object when calling `encry
 var options, encrypted;
 
 options = {
-    data: new Uint8Array([0x01, 0x01, 0x01]),           // input as Uint8Array
-    publicKeys: openpgp.readArmoredKey(pubkey).keys,   // for encryption
-    privateKeys: openpgp.readArmoredKey(privkey).keys, // for signing (optional)
-    armor: false                                        // don't ASCII armor
+  data: new Uint8Array([0x01, 0x01, 0x01]),           // input as Uint8Array
+  publicKeys: openpgp.readArmoredKey(pubkey).keys,   // for encryption
+  privateKeys: openpgp.readArmoredKey(privkey).keys, // for signing (optional)
+  armor: false                                        // don't ASCII armor
 };
 
-ciphertext = await openpgp.encrypt(options);     // use ciphertext
+// Because of the way the library works (random values have to be generated on natively!),
+// it is always highly recommended to call this method before doing any actual work!
+openpgp.prepareRandomValues()
+  .then(() => {
+    openpgp.encrypt(options)
+      .then((ciphertext) => {
+        encrypted = ciphertext.message.packets.write(); // get raw encrypted packets as Uint8Array
+      })
+      .catch((error) => {
+        console.log("Something went wrong: " + error);
+      });
+  });
 ```
 
 Or, override the config to enable compression:
 
 ```js
 options = {
-    message: openpgp.readBinaryMessage(encrypted),             // parse encrypted bytes
-    publicKeys: openpgp.readArmoredKey(pubkey).keys,     // for verification (optional)
-    privateKey: openpgp.readArmoredKey(privkey).keys[0], // for decryption
-    format: 'binary'                                      // output as Uint8Array
+  message: openpgp.readBinaryMessage(encrypted),             // parse encrypted bytes
+  publicKeys: openpgp.readArmoredKey(pubkey).keys,     // for verification (optional)
+  privateKey: openpgp.readArmoredKey(privkey).keys[0], // for decryption
+  format: 'binary'                                      // output as Uint8Array
 };
 
-openpgp.encrypt(options).then(async function(ciphertext) {
-    const encrypted = ciphertext.message.packets.write(); // get raw encrypted packets as ReadableStream<Uint8Array>
-
-    // Either pipe the above stream somewhere, pass it to another function,
-    // or read it manually as follows:
-    const reader = openpgp.stream.getReader(encrypted);
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        console.log('new chunk:', value); // Uint8Array
-    }
-});
+// Because of the way the library works (random values have to be generated on natively!),
+// it is always highly recommended to call this method before doing any actual work!
+openpgp.prepareRandomValues()
+  .then(() => {
+    openpgp.decrypt(options)
+      .then((plaintext) => {
+        return plaintext.data // Uint8Array([0x01, 0x01, 0x01])
+      })
+      .catch((error) => {
+        console.log("Something went wrong: " + error);
+      });
+  });
 ```
 
 For more information on creating ReadableStreams, see [the MDN Documentation on `new
@@ -256,9 +284,9 @@ its [Reader class](https://openpgpjs.org/web-stream-tools/Reader.html).
 RSA keys:
 ```js
 var options = {
-    userIds: [{ name:'Jon Smith', email:'jon@example.com' }], // multiple user IDs
-    numBits: 2048,                                            // RSA key size
-    passphrase: 'super long and hard to guess secret'         // protects the private key
+  userIds: [{ name:'Jon Smith', email:'jon@example.com' }], // multiple user IDs
+  numBits: 2048,                                            // RSA key size
+  passphrase: 'super long and hard to guess secret'         // protects the private key
 };
 ```
 
@@ -277,33 +305,18 @@ var options = {
 };
 ```
 
-```js
-openpgp.generateKey(options).then(function(key) {
-    var privkey = key.privateKeyArmored; // '-----BEGIN PGP PRIVATE KEY BLOCK ... '
-    var pubkey = key.publicKeyArmored;   // '-----BEGIN PGP PUBLIC KEY BLOCK ... '
-    var revocationCertificate = key.revocationCertificate; // '-----BEGIN PGP PUBLIC KEY BLOCK ... '
-});
-```
+// Because of the way the library works (random values have to be generated on natively!),
+// it is always highly recommended to call this method before doing any actual work!
+openpgp.prepareRandomValues()
+  .then(() => {
+    openpgp.generateKey(options)
+      .then((key) => {
+        var privkey = key.privateKeyArmored; // '-----BEGIN PGP PRIVATE KEY BLOCK ... '
+        var pubkey = key.publicKeyArmored;   // '-----BEGIN PGP PUBLIC KEY BLOCK ... '
+      })
+      .catch((error) => {
+        console.log("Something went wrong: " + error);
+      });
+  });
 
-#### Revoke a key
-
-Using a revocation certificate:
-```js
-var options = {
-    key: openpgp.key.readArmored(pubkey).keys[0],
-    revocationCertificate: revocationCertificate
-};
-```
-
-Using the private key:
-```js
-var options = {
-    key: openpgp.key.readArmored(privkey).keys[0]
-};
-```
-
-```js
-openpgp.revokeKey(options).then(function(key) {
-    var pubkey = key.publicKeyArmored;   // '-----BEGIN PGP PUBLIC KEY BLOCK ... '
-});
 ```

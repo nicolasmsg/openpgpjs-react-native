@@ -1,7 +1,7 @@
 {
   "name": "react-native-openpgp",
   "description": "React-Native OpenPGP is an OpenPGP.js implementation made to work under React-Native.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "license": "MIT",
   "engines": {
     "node": ">= 8.0.0"
