@@ -339,9 +339,11 @@ export function readBinaryMessage(encrypted) {
  * @static
  */
 export function encrypt({ data, publicKeys, privateKeys, passwords, filename, armor=true }) {
+  checkData(data);
 
-
-  checkData(data); publicKeys = toArray(publicKeys); privateKeys = toArray(privateKeys); passwords = toArray(passwords);
+  publicKeys = toArray(publicKeys);
+  privateKeys = toArray(privateKeys);
+  passwords = toArray(passwords);
 
   if (!nativeAEAD() && asyncProxy) { // use web worker if web crypto apis are not supported
     return asyncProxy.delegate('encrypt', { message, publicKeys, privateKeys, passwords, sessionKey, compression, armor, streaming, detached, signature, returnSessionKey, wildcard, date, fromUserIds, toUserIds });
